@@ -2,16 +2,20 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
+import re
+from boto3.dynamodb.conditions import Attr
 
 def lambda_handler(event, context):
-
 
     dynamodb = boto3.resource('dynamodb')
     mapTable = dynamodb.Table('device-map')
 
     try:
-        macAddr = event['query']['macAddr']
+        inputMacAddr = event['query']['macAddr']
+        macAddr = re.sub(':', '', inputMacAddr.lower())
+        macAddr = re.sub('-', '', macAddr)
+        macAddr = re.sub('\.', '', macAddr)
+        macAddr = re.sub(' ', '', macAddr)
     except KeyError:
         pass
     else:
