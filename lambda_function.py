@@ -2,35 +2,42 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
 
 def lambda_handler(event, context):
 
-    if event['query']['macAddr']:
-        macAddr = event['query']['macAddr']
-    elif event['query']['deviceId']:
-        deviceId = event['query']['deviceId']
 
     dynamodb = boto3.resource('dynamodb')
     mapTable = dynamodb.Table('device-map')
 
-    macAddrLookUp = mapTable.get_item(
-        Key={
-            'macAddr': macAddr
-        }
-    )
+    try:
+        macAddr = event['query']['macAddr']
+    except KeyError:
+        pass
+    else:
+        macAddrLookUp = mapTable.get_item(
+            Key={
+                'macAddr': macAddr
+            }
+        )
 
-    deviceIdLookUp = mapTable.get_item(
-        Key={
-            'deviceId': deviceId
-        }
-    )
+        if 'Item' not in macAddrLookUp:
+            print("macAddrLookUp output: ", macAddrLookUp['ResponseMetadata'])
+            return {"message": "MAC not found."}
+        else:
+            return { "macAddr": macAddrLookUp['Item']['macAddr'], "deviceId": macAddrLookUp['Item']['deviceId']}
 
-    if 'Item' not in macAddrLookUp:
-        print("macAddrLookUp output: ", macAddrLookUp['ResponseMetadata'])
-        return { "message": "MAC not found." }
+    try:
+        deviceId = event['query']['deviceId']
+    except KeyError:
+        pass
+    else:
+        deviceIdLookUp = mapTable.scan(
+            FilterExpression=Attr('deviceId').eq(deviceId)
+        )
 
-    if 'Item' not in deviceIdLookUp:
-        print("deviceIdLookUp output: ", deviceIdLookUp['ResponseMetadata'])
-        return {"message": "DeviceId not found."}
-
-    return
+        if 'Items' not in deviceIdLookUp:
+            print("deviceIdLookUp output: ", deviceIdLookUp['ResponseMetadata'])
+            return {"message": "DeviceId not found."}
+        else:
+            return { "macAddr": deviceIdLookUp['Items'][0]['macAddr'], "deviceId": deviceIdLookUp['Items'][0]['deviceId']}
